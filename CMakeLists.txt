@@ -15,8 +15,3 @@ target_link_libraries(HimeTest hime libgmock libgtest)
 target_compile_options(HimeTest PRIVATE "--std=c++11")
 add_dependencies(HimeTest libgmock libgtest)
 add_test(HimeTest HimeTest)
-
-add_executable(RotateTest test_rotate.cpp hlrotate.h)
-target_link_libraries(RotateTest libgmock libgtest)
-target_compile_options(RotateTest PRIVATE "--std=c++11")
-add_test(RotateTest RotateTest)

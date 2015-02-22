@@ -1,7 +1,5 @@
 #include "hime.h"
 
-#include "hlrotate.h"
-
 #include <cstdint>
 #include <cstddef>
 #include <stack>
@@ -493,13 +491,7 @@ lbl_b989:
                  notsure7e0072 = 6
                  notsure7e1630 = 0x1
                  */
-#if 0
-                printf("0016 = %x\n", notsure7e0016);
-                printf("0070 = %x\n", notsure7e0070);
-                printf("0072 = %x\n", notsure7e0072);
-                printf("1640 = %x\n", *notsure7e1640);
-                printf("1641 = %x\n", *notsure7e1641);
-#endif
+
                 //$07/BA10 E6 16       INC $16    [$00:0016]   A:4AF0 X:1520 Y:0000 P:eNvMxdIzc
                 //$07/BA12 E6 16       INC $16    [$00:0016]   A:4AF0 X:1520 Y:0000 P:eNvMxdIzc
                 notsure000016 += 2;
@@ -667,80 +659,26 @@ void printBits(size_t const size, void const * const ptr)
 
 void sub_b83d()
 {
-    //$07/B83D 85 12       STA $12    [$00:0012]   A:0019 X:001D Y:001B P:envmxdIZC
-    notsure000012 = curA;
+    hime_t& offset = notsure000012;
+    hime_t& baseAddr = curY;
+    offset = curA - 0xef36;
 
-    // NOTE: now a bit like but not same
-    // notsure02ef36 as base
-    const hime_t valueOffset = notsure000012;
-    const hime_t valueBase = valueOffset - 0xef36;
-    notsure000012 = valueBase;
-
-    //printf("RooruB Start by %x as base offset when %x was given as 0012 (curA: %x)\n", notsure000012, valueOffset, curA);
-lbl_B83F:
-    //$07/B83F B2 12       LDA ($12)  [$02:EF00]   A:0019 X:001D Y:001B P:envmxdIZC
-    //$07/B841 29 FF 00    AND #$00FF              A:0019 X:001D Y:001B P:envmxdIZC
-    //$07/B844 F0 1E       BEQ $1E    [$B864]      A:0019 X:001D Y:001B P:envmxdIZC
-    curA = getFromValueTable(notsure000012) & 0x00FF;
-    if (curA)
+    hime_t count = 0;
+    hime_t& checksum = notsure000018;
+    while ((count = getFromValueTable(offset) & 0x00FF) != 0)
     {
-        //$07/B846 AA          TAX                     A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B847 7B          TDC                     A:0019 X:001D Y:001B P:envmxdIZC
-        curX = curA;
-        curA = 0; // tdc; // TODO w00t?
+        const hime_t mask = (1 << count) - 1;
 
-        //$07/B848 38          SEC                     A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B849 2A          ROL A                   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B84A CA          DEX                     A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B84B D0 FB       BNE $FB    [$B848]      A:0019 X:001D Y:001B P:envmxdIZC
-        do
-        {
-            curA |= 0x8000;
-            curA = rotateLeft(curA);
-            curX--;
-            //printf("RooruB_1 curA: %x, curX: %x\n", curA, curX);
-        } while(curX); // TODO when to stop?
+        hime_t& storedAddress = notsure000014;
+        storedAddress = getFromValueTable(++offset);
 
-        //$07/B84D 85 04       STA $04    [$00:0004]   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B84F E6 12       INC $12    [$00:0012]   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B851 B2 12       LDA ($12)  [$02:EF00]   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B853 85 14       STA $14    [$00:0014]   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B855 B1 14       LDA ($14),y[$02:001B]   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B857 25 04       AND $04    [$00:0004]   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B859 18          CLC                     A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B85A 65 18       ADC $18    [$00:0018]   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B85C 85 18       STA $18    [$00:0018]   A:0019 X:001D Y:001B P:envmxdIZC
-        notsure000004 = curA;
-        notsure000012++;
-        //printf("14 -> %x, 12 -> %x, 04 -> %x\n", notsure000014, notsure000012, notsure000004);
+        hime_t& value = notsure000004;
+        value = notsure000000[storedAddress + baseAddr] & mask;
+        checksum += value;
 
-        notsure000014 = getFromValueTable(notsure000012);
-        if ((notsure000014 + curY) > sizeof(notsure000000))
-        {
-            printf("Overflow detected (%x vs. %lx)!\n", notsure000014 + curY, sizeof(notsure000000));
-            curA = notsure000000[0 + 0];
-        }
-        else
-        {
-            curA = notsure000000[notsure000014 + curY];
-        }
-        //printf("CurA_1: %x and 0018: %x\n", curA, notsure000018);
-        curA &= notsure000004;
-        //printf("CurA_2: %x and 0018: %x\n", curA, notsure000018);
-        notsure000018 += curA;
-        /*
-        printf("Pulled %x from %x (%x + %x) (0004: %x, 0012: %x, 0014: %x, 0018: %x) [%x]\n",
-               curA, notsure000014+curY, notsure000014, curY, notsure000004, notsure000012, notsure000014, notsure000018,
-               notsure000000[0x82]);*/
-
-        //$07/B85E E6 12       INC $12    [$00:0012]   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B860 E6 12       INC $12    [$00:0012]   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B862 80 DB       BRA $DB    [$B83F]      A:0019 X:001D Y:001B P:envmxdIZC
-        notsure000012 += 2;
-        goto lbl_B83F;
+        //printf("Value %x at %x with mask %x checksum %x count %u\n", value, storedAddress, mask, checksum, count);
+        offset += 2;
     }
-
-    //$07/B864 60          RTS                     A:0019 X:001D Y:001B P:envmxdIZC
 }
 
 void sub_b801()
@@ -828,129 +766,85 @@ void sub_b7f1()
 
 void sub_b7b0()
 {
-    //$07/B7B0 85 12       STA $12    [$00:0012]   A:0019 X:001D Y:001B P:envmxdIZC
-    //$07/B7B2 20 F1 B7    JSR $B7F1  [$07:B7F1]   A:0019 X:001D Y:001B P:envmxdIZC
+    // Store current A and call subroutine
     notsure000012 = curA;
     sub_b7f1(); // TODO: input x output = e
 
-    // NOTE: now a bit like but not same
-    // notsure02ef36 as base
-    const hime_t valueOffset = notsure000012;
-    const hime_t valueBase = valueOffset - 0xef36;
+    const hime_t valueBase = notsure000012 - 0xef36;
     notsure000012 = valueBase;
 
-lbl_B7B5:
-    //$07/B7B5 B2 12       LDA ($12)  [$02:EF00]   A:0019 X:001D Y:001B P:envmxdIZC
-    //$07/B7B7 29 FF 00    AND #$00FF              A:0019 X:001D Y:001B P:envmxdIZC
-    //$07/B7BA F0 2C       BEQ $2C    [$B7E8]      A:0019 X:001D Y:001B P:envmxdIZC
-    curA = getFromValueTable(notsure000012) & 0x00FF; // 1) 0x8204 3) 0xaa02
-    //printf("Start by %x as base offset when %x was given as 0012 (curA: %x)\n", notsure000012, valueOffset, curA);
-    if(curA)
+    hime_t& offset = notsure000012;
+    hime_t count;
+
+    while ((count = getFromValueTable(offset) & 0x00FF) != 0)
     {
-        //$07/B7BC 85 08       STA $08    [$00:0008]   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B7BE 85 0A       STA $0A    [$00:000A]   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B7C0 E6 12       INC $12    [$00:0012]   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B7C2 B2 12       LDA ($12)  [$02:EF00]   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B7C4 85 14       STA $14    [$00:0014]   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B7C6 64 10       STZ $10    [$00:0010]   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B7C8 06 0E       ASL $0E    [$00:000E]   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B7CA 26 10       ROL $10    [$00:0010]   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B7CC C6 0C       DEC $0C    [$00:000C]   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B7CE D0 04       BNE $04    [$B7D4]      A:0019 X:001D Y:001B P:envmxdIZC
-        notsure000008 = curA;
-        notsure00000a = curA;
+        // Store current values
+        notsure000008 = count;
+        notsure00000a = count;
         notsure000012++;
-        //const hime_t oldA = getFromValueTable(notsure000012); //2) 0x0082 4) 0x00aa
-        //printf("Pulled %x and %x from offset %x and %x (000e: %x)\n",
-        //       curA, oldA, notsure000012-1, notsure000012, notsure00000e);
-        curA = getFromValueTable(notsure000012); //2) 0x0082 4) 0x00aa
+
+        // Get the next value from the table
+        curA = getFromValueTable(notsure000012);
         notsure000014 = curA;
-        //printf("3 %x %x\n", notsure000014, notsure000012);
         notsure000010 = 0;
-lbl_B7C8:
-        if (notsure00000e & 0b1000000000000000)
-        {
-            notsure000010 |= 0x8000;
-            //printf("Carry 1 to 0010 -> 0x%x\n", notsure000010);
-        }
-        notsure00000e <<= 1;
-        notsure000010 = rotateLeft(notsure000010);
-        //printf("ASL+ROL 0010 = 0x%x, 000e: 0x%x, 000c: 0x%x\n", notsure000010, notsure00000e, notsure00000c);
-        notsure00000c--;
 
-        if(!notsure00000c)
+#define printBits(...)
+#define printf(...)
+        printf("binary1(%u): ", notsure000008);
+        hime_t& payloadValue1 = notsure000010;
+        for (hime_t i = count; i > 0; --i)
         {
-            //$07/B7D0 E8          INX                     A:0019 X:001D Y:001B P:envmxdIZC
-            //$07/B7D1 20 F1 B7    JSR $B7F1  [$07:B7F1]   A:0019 X:001D Y:001B P:envmxdIZC
-            curX++;
-            sub_b7f1(); // TODO: input x output = e
-        }
-        //$07/B7D4 C6 08       DEC $08    [$00:0008]   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B7D6 D0 F0       BNE $F0    [$B7C8]      A:0019 X:001D Y:001B P:envmxdIZC
-        //printf("JMP A:%x 0008:%x 000a:%x 0010:%x 0012:%x 0014:%x Y:%x X:%x\n",
-        //       notsure000008, notsure00000a, notsure000010, curA, notsure000012, notsure000014, curY, curX);
-        notsure000008--;
-        if (notsure000008)
-        {
-            goto lbl_B7C8;
-        }
+            payloadValue1 <<= 1;
+            if (notsure00000e & 0b1000000000000000)
+            {
+                payloadValue1 |= 1;
+            }
 
+            notsure00000e <<= 1;
 
-        //$07/B7D8 7B          TDC                     A:0019 X:001D Y:001B P:envmxdIZC
-        // TODO: page register always 0 when calling this?
-        curA = 0;
-lbl_B7D9:
-        //$07/B7D9 66 10       ROR $10    [$00:0010]   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B7DB 2A          ROL A                   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B7DC C6 0A       DEC $0A    [$00:000A]   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B7DE D0 F9       BNE $F9    [$B7D9]      A:0019 X:001D Y:001B P:envmxdIZC
-        //printf("ROR 0010 = %x -> %x\n", notsure000010, rotateRight(notsure000010));
-        if (notsure000010 & 0b1)
-        {
-            curA |= 0x8000;
-            //printf("Carry 1 to curA -> 0x%x\n", curA);
-        }
-        notsure000010 = rotateRight(notsure000010);
-        //printf("ROL 0010 = %x -> %x\n", curA, rotateLeft(curA));
-        curA = rotateLeft(curA);
-        notsure00000a--;
-        //printf("Arooru 0010: 0x%x, curA: 0x%x, 000a: 0x%x\n", notsure000010, curA, notsure00000a);
-        if(notsure00000a)
-        {
-            goto lbl_B7D9;
-        }
+            notsure00000c--;
+            printBits(sizeof(payloadValue), &payloadValue);
+            printf(" --> ");
 
-        //$07/B7E0 91 14       STA ($14),y[$02:001B]   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B7E2 E6 12       INC $12    [$00:0012]   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B7E4 E6 12       INC $12    [$00:0012]   A:0019 X:001D Y:001B P:envmxdIZC
-        //$07/B7E6 80 CD       BRA $CD    [$B7B5]      A:0019 X:001D Y:001B P:envmxdIZC
-        //printf("Round $12(%i) $14:(0x%x) rA:(0x%x) $10:(0x%x)\n", notsure000012, notsure000014, curA, notsure000010);
-        //printf("Store 0000[%x + %x(%x)] = %x\n", notsure000014, curY, (notsure000014+curY), curA);
+            if (notsure00000c == 0)
+            {
+                curX++;
+                sub_b7f1(); // TODO: input x output = e
+            }
+        }
+        printf("%x\n", payloadValue);
 
-        if ((notsure000014 + curY) > sizeof(notsure000000))
+        // Process the final shifts for curA
+        printf("binary2(%u): ", notsure00000a);
+        hime_t payloadValue2 = 0;
+        while (notsure00000a > 0)
         {
-            printf("Overflow detected (%x vs. %lx)!\n", notsure000014 + curY, sizeof(notsure000000));
-            notsure000000[0 + 0] = curA;
+            payloadValue2 <<= 1;
+            if (payloadValue1 & 0b1)
+            {
+                payloadValue2 |= 1;
+            }
+            payloadValue1 >>= 1;
+            notsure00000a--;
+            printBits(sizeof(payloadValue2), &payloadValue2);
+            printf(" ( ");
+            printBits(sizeof(payloadValue), &payloadValue);
+            printf(" ) ");
+            printf(" --> ");
         }
-        else
-        {
-            notsure000000[notsure000014 + curY] = curA;
-        }
+        printf("%x\n", payloadValue2);
+#undef printf
+#undef printBits
+        notsure000000[notsure000014 + curY] = payloadValue2;
+
         notsure000012 += 2;
-
-        goto lbl_B7B5;
     }
 
-    //$07/B7E8 A5 0C       LDA $0C    [$00:000C]   A:0019 X:001D Y:001B P:envmxdIZC
-    //$07/B7EA C9 06 00    CMP #$0006              A:0019 X:001D Y:001B P:envmxdIZC
-    //$07/B7ED F0 01       BEQ $01    [$B7F0]      A:0019 X:001D Y:001B P:envmxdIZC
+    // Final check and increment
     curA = notsure00000c;
-    if (curA != 6)
-    {
-        //$07/B7EF E8          INX                     A:0019 X:001D Y:001B P:envmxdIZC
+    if (curA != 6) {
         curX++; // TODO output
     }
-    //$07/B7F0 60          RTS                     A:0019 X:001D Y:001B P:envmxdIZC
 }
 
 void sub_b767(DEBUG_VERIFY debug_level)
